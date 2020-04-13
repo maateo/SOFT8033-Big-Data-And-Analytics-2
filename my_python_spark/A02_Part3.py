@@ -20,6 +20,8 @@
 # IMPORTS
 # ------------------------------------------
 import pyspark
+import datetime
+
 
 # ------------------------------------------
 # FUNCTION process_line
@@ -41,11 +43,66 @@ def process_line(line):
     # 5. We return res
     return res
 
+
+def my_reduce(all_input, measurement_time):
+    datetime_format = '%Y-%m-%d (%H:%M:%S)'
+
+    results = []
+
+    ran_out_count = 1
+    starting_time = ""
+    current_time = ""
+
+    for input in all_input:
+        if starting_time == "":
+            starting_time = datetime.datetime.strptime(input, datetime_format)
+            current_time = starting_time
+
+        next_time = datetime.datetime.strptime(input, datetime_format)
+
+        if (next_time - current_time).total_seconds() == measurement_time * 60:
+            # We are 5 minutes apart
+            ran_out_count = ran_out_count + 1
+            current_time = next_time
+
+        if (next_time - current_time).total_seconds() > measurement_time * 60:
+            # We are more than 5 minute apart
+            # Save our counts
+            results.append((starting_time.strftime("%Y-%m-%d"), (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+
+            # Reset the things
+            ran_out_count = 1
+            starting_time = next_time
+            current_time = next_time
+
+    # Write the last line
+    results.append((starting_time.strftime("%Y-%m-%d"), (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+
+    return results
+
+
 # ------------------------------------------
 # FUNCTION my_main
 # ------------------------------------------
 def my_main(sc, my_dataset_dir, station_name, measurement_time):
+    inputRDD = sc.textFile(my_dataset_dir)
+
+    mappedRDD = inputRDD.map(process_line)
+
+    # Keeps only those that match the name and are ran out of bikes
+    filteredRDD = mappedRDD.filter(lambda row: row[0] == '0' and row[5] == '0' and row[1] == station_name)
+
+    mappedRDD = filteredRDD.map(lambda row: datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d (%H:%M:00)"))
+
+    collected = mappedRDD.collect()
+
+    reduced = my_reduce(collected, measurement_time)
+
+    for item in reduced:
+        print(item)
+
     pass
+
 
 # --------------------------------------------------------
 #
@@ -67,7 +124,7 @@ if __name__ == '__main__':
     measurement_time = 5
 
     # 2. Local or Databricks
-    local_False_databricks_True = False
+    local_False_databricks_True = True
 
     # 3. We set the path to my_dataset
     my_local_path = "/home/nacho/CIT/Tools/MyCode/Spark/"
