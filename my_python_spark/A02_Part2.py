@@ -24,6 +24,7 @@ import pyspark
 import calendar
 import datetime
 
+
 # ------------------------------------------
 # FUNCTION process_line
 # ------------------------------------------
@@ -44,11 +45,42 @@ def process_line(line):
     # 5. We return res
     return res
 
+
 # ------------------------------------------
 # FUNCTION my_main
 # ------------------------------------------
 def my_main(sc, my_dataset_dir, station_name):
+    inputRDD = sc.textFile(my_dataset_dir)
+
+    mappedRDD = inputRDD.map(process_line)
+
+    # Keeps only those that match the name and are ran out of bikes
+    filteredRDD = mappedRDD.filter(lambda row: row[0] == '0' and row[5] == '0' and row[1] == station_name)
+
+    ###############
+    # We want: ('Day_hour', (number_of_runouts, percentage of total runouts in dataset))
+    ###############
+
+    # Get date_time from column 4, turn it into a datetime object, and then convert that into a string in the format "%A_%H" (DAY_HOUR)
+    # We also put in 1, so we can reduce it next.
+    # Example result is: ('Friday_22', 1)
+    mappedRDD = filteredRDD.map(lambda row: (datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%A_%H"), 1))
+
+    total_run_outs = mappedRDD.count()  # gives count of how many runouts we had
+
+    reducedRDD = mappedRDD.reduceByKey(lambda x, y: (x + y))
+
+    mappedRDD = reducedRDD.map(lambda row: (row[0], (row[1], (row[1] / total_run_outs) * 100)))
+
+    sortedRDD = mappedRDD.sortBy(lambda a: a[1][0] * (-1))
+    # sortedRDD = mappedRDD.sortBy(lambda a: a[1], False)
+
+    # print(sortedRDD.collect())
+    for item in sortedRDD.collect():
+        print(item)
+
     pass
+
 
 # --------------------------------------------------------
 #
@@ -69,7 +101,7 @@ if __name__ == '__main__':
     station_name = "Fitzgerald's Park"
 
     # 2. Local or Databricks
-    local_False_databricks_True = False
+    local_False_databricks_True = True
 
     # 3. We set the path to my_dataset
     my_local_path = "/home/nacho/CIT/Tools/MyCode/Spark/"
