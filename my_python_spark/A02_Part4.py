@@ -70,54 +70,40 @@ def my_state_update(newValues, runningCount):
     return sum(newValues, runningCount)  # add the new values with the previous running count to get the new count
 
 
-
 # ------------------------------------------
 # FUNCTION my_model
 # ------------------------------------------
 def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_interval):
     inputDStream = ssc.textFileStream(monitoring_dir)
 
-    # 2. Operation T1: flatMap
-    allWordsDStream = inputDStream.map(process_line)
-    # allWordsDStream.pprint()
-    # pass
+    mappedDStream = inputDStream.map(process_line)
 
-    allWordsDStream = allWordsDStream.filter(lambda row: row[0] == '0' and row[5] == '0')
+    ranoutDStream = mappedDStream.filter(lambda row: row[0] == '0' and row[5] == '0')
 
-    # 3. Operation T2: map
-    pairWordsDStream = allWordsDStream.map(lambda row: (row[1], 1))
+    stationCountDStream = ranoutDStream.map(lambda row: (row[1], 1))
 
-    # 4. Operation T1: window
     # The first argument is the window duration, i.e., how many previous batches of data are considered.
     # The second argument is the sliding duration, i.e., how frequently the new DStream computes results.
-    print("window_duration * time_step_interval" , window_duration , time_step_interval)
-    print("sliding_duration * time_step_interval" , sliding_duration , time_step_interval)
-    windowDStream = pairWordsDStream.window(window_duration * time_step_interval,
-                                            sliding_duration * time_step_interval
-                                            )
+    amalgamateWindowDStream = stationCountDStream.window(window_duration * time_step_interval,
+                                                         sliding_duration * time_step_interval
+                                                         )
+    # amalgamateWindowDStream.pprint(100000)
+
+    cummulativeWindowDStream3 = stationCountDStream.window(sliding_duration * time_step_interval,  # Getting just one batch of data to add onto the running total
+                                                           sliding_duration * time_step_interval
+                                                           )
+
+    cummulativeSolutionDStream = cummulativeWindowDStream3.updateStateByKey(my_state_update)
+    cummulativeSolutionDStream = cummulativeSolutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
+
+    amalgamateSolutionDStream2 = amalgamateWindowDStream.reduceByKey(lambda x, y: (x + y)).transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
+
+    cummulativeSolutionDStream.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
     # windowDStream.pprint()
-    # pass
-    # 5. Opetion T3: updateStateByKey, to get the increased amount of words appearing.
-    # windowDStream.pprint(100000)
-    windowDStream3 = pairWordsDStream.window(10,
-                                            sliding_duration * time_step_interval
-                                            )
-    solutionDStream = windowDStream3.updateStateByKey(my_state_update)
-    solutionDStream = solutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
-
-
-    solutionDStream2 = windowDStream.reduceByKey(lambda x, y: (x + y)).transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
-
-
-
-    solutionDStream.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
-
-    # windowDStream.pprint()
-    solutionDStream.pprint(10000)
-    solutionDStream2.pprint(10000)
-    # print("HELLO!")
-    # solutionDStream.foreachRDD(lambda rdd: printEachRDD(rdd))
+    cummulativeSolutionDStream.pprint(10000)
+    amalgamateSolutionDStream2.pprint(10000)
+    # cummulativeSolutionDStream.foreachRDD(lambda rdd: printEachRDD(rdd))
 
     pass
 
