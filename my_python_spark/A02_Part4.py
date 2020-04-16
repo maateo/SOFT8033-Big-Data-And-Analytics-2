@@ -48,19 +48,27 @@ def process_line(line):
     return res
 
 
-def my_state_update(time_interval_list_of_collected_new_values, cur_agg_val):
-    # 1. We create the output variable
-    res = 0
+# def my_state_update(a):
+#     # 1. We create the output variable
+#     res = 0
+#
+#     # # 2. If this is the first time we find the key, we initialise it
+#     # if (cur_agg_val is None):
+#     #     cur_agg_val = 0
+#     #
+#     # # 3. We update the state
+#     # res = sum(time_interval_list_of_collected_new_values) + cur_agg_val
+#
+#     print("A", a)
+#
+#     # 4. We return res
+#     return res
 
-    # 2. If this is the first time we find the key, we initialise it
-    if (cur_agg_val is None):
-        cur_agg_val = 0
+def my_state_update(newValues, runningCount):
+    if runningCount is None:
+        runningCount = 0
+    return sum(newValues, runningCount)  # add the new values with the previous running count to get the new count
 
-    # 3. We update the state
-    res = sum(time_interval_list_of_collected_new_values) + cur_agg_val
-
-    # 4. We return res
-    return res
 
 
 # ------------------------------------------
@@ -82,6 +90,8 @@ def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_i
     # 4. Operation T1: window
     # The first argument is the window duration, i.e., how many previous batches of data are considered.
     # The second argument is the sliding duration, i.e., how frequently the new DStream computes results.
+    print("window_duration * time_step_interval" , window_duration , time_step_interval)
+    print("sliding_duration * time_step_interval" , sliding_duration , time_step_interval)
     windowDStream = pairWordsDStream.window(window_duration * time_step_interval,
                                             sliding_duration * time_step_interval
                                             )
@@ -89,7 +99,11 @@ def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_i
     # windowDStream.pprint()
     # pass
     # 5. Opetion T3: updateStateByKey, to get the increased amount of words appearing.
-    solutionDStream = windowDStream.updateStateByKey(my_state_update)
+    # windowDStream.pprint(100000)
+    windowDStream3 = pairWordsDStream.window(10,
+                                            sliding_duration * time_step_interval
+                                            )
+    solutionDStream = windowDStream3.updateStateByKey(my_state_update)
     solutionDStream = solutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
 
 
@@ -102,7 +116,7 @@ def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_i
     # windowDStream.pprint()
     solutionDStream.pprint(10000)
     solutionDStream2.pprint(10000)
-
+    # print("HELLO!")
     # solutionDStream.foreachRDD(lambda rdd: printEachRDD(rdd))
 
     pass
