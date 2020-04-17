@@ -26,6 +26,7 @@ import os
 import shutil
 import time
 
+
 # ------------------------------------------
 # FUNCTION process_line
 # ------------------------------------------
@@ -46,11 +47,72 @@ def process_line(line):
     # 5. We return res
     return res
 
+
+# def my_state_update(a):
+#     # 1. We create the output variable
+#     res = 0
+#
+#     # # 2. If this is the first time we find the key, we initialise it
+#     # if (cur_agg_val is None):
+#     #     cur_agg_val = 0
+#     #
+#     # # 3. We update the state
+#     # res = sum(time_interval_list_of_collected_new_values) + cur_agg_val
+#
+#     print("A", a)
+#
+#     # 4. We return res
+#     return res
+
+def my_state_update(newValues, runningCount):
+    if runningCount is None:
+        runningCount = 0
+    return sum(newValues, runningCount)  # add the new values with the previous running count to get the new count
+
+
 # ------------------------------------------
 # FUNCTION my_model
 # ------------------------------------------
 def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_interval):
+    inputDStream = ssc.textFileStream(monitoring_dir)
+
+    mappedDStream = inputDStream.map(process_line)
+
+    ranoutDStream = mappedDStream.filter(lambda row: row[0] == '0' and row[5] == '0')
+
+    stationCountDStream = ranoutDStream.map(lambda row: (row[1], 1))
+
+    # The first argument is the window duration, i.e., how many previous batches of data are considered.
+    # The second argument is the sliding duration, i.e., how frequently the new DStream computes results.
+    amalgamateWindowDStream = stationCountDStream.window(window_duration * time_step_interval,
+                                                         sliding_duration * time_step_interval
+                                                         )
+    # amalgamateWindowDStream.pprint(100000)
+
+    cummulativeWindowDStream3 = stationCountDStream.window(sliding_duration * time_step_interval,  # Getting just one batch of data to add onto the running total
+                                                           sliding_duration * time_step_interval
+                                                           )
+
+    cummulativeSolutionDStream = cummulativeWindowDStream3.updateStateByKey(my_state_update)
+    cummulativeSolutionDStream = cummulativeSolutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
+
+    amalgamateSolutionDStream2 = amalgamateWindowDStream.reduceByKey(lambda x, y: (x + y)).transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
+
+    cummulativeSolutionDStream.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+
+    # windowDStream.pprint()
+    cummulativeSolutionDStream.pprint(10000)
+    amalgamateSolutionDStream2.pprint(10000)
+    # cummulativeSolutionDStream.foreachRDD(lambda rdd: printEachRDD(rdd))
+
     pass
+
+
+# def printEachRDD(rdd):
+#     print("-------------------")
+#     for item in rdd.sortBy(lambda a: a[1] * (-1)).collect():
+#         print(item)
+
 
 # ------------------------------------------
 # FUNCTION get_source_dir_file_names
@@ -103,8 +165,7 @@ def streaming_simulation(local_False_databricks_True,
                          time_step_interval,
                          verbose,
                          dataset_file_names
-                        ):
-
+                         ):
     # 1. We check what time is it
     start = time.time()
 
@@ -137,6 +198,7 @@ def streaming_simulation(local_False_databricks_True,
         if (time_to_wait > 0):
             time.sleep(time_to_wait)
 
+
 # ------------------------------------------
 # FUNCTION create_ssc
 # ------------------------------------------
@@ -145,8 +207,7 @@ def create_ssc(sc,
                monitoring_dir,
                window_duration,
                sliding_duration
-              ):
-
+               ):
     # 1. We create the new Spark Streaming context acting every time_step_interval.
     ssc = pyspark.streaming.StreamingContext(sc, time_step_interval)
 
@@ -155,6 +216,7 @@ def create_ssc(sc,
 
     # 3. We return the ssc configured and modelled.
     return ssc
+
 
 # ------------------------------------------
 # FUNCTION my_main
@@ -169,8 +231,7 @@ def my_main(sc,
             window_duration,
             sliding_duration,
             valid_files
-           ):
-
+            ):
     # 1. We get the names of the files of our dataset
     dataset_file_names = get_source_dir_file_names(local_False_databricks_True, source_dir, verbose, valid_files)
 
@@ -182,7 +243,7 @@ def my_main(sc,
                                                                                   monitoring_dir,
                                                                                   window_duration,
                                                                                   sliding_duration
-                                                                                 )
+                                                                                  )
                                                                )
 
     # 3. We start the Spark Streaming Context in the background to start receiving data.
@@ -197,12 +258,13 @@ def my_main(sc,
                          time_step_interval,
                          verbose,
                          dataset_file_names
-                        )
+                         )
 
     # 6. We stop the Spark Streaming Context
     ssc.stop(False)
     if (not sc._jvm.StreamingContext.getActive().isEmpty()):
         sc._jvm.StreamingContext.getActive().get().stop(False)
+
 
 # --------------------------------------------------------
 #
@@ -242,10 +304,10 @@ if __name__ == '__main__':
                    "bikeMon_20170504.csv",
                    "bikeMon_20170505.csv",
                    "bikeMon_20170507.csv"
-                  ]
+                   ]
 
     # 2. Local or Databricks
-    local_False_databricks_True = False
+    local_False_databricks_True = True
 
     # 3. We set the path to my_dataset, my_monitoring and my_checkpoint
     my_local_path = "/home/nacho/CIT/Tools/MyCode/Spark/"
@@ -310,5 +372,4 @@ if __name__ == '__main__':
             window_duration,
             sliding_duration,
             valid_files
-           )
-
+            )
