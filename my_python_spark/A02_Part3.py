@@ -20,7 +20,7 @@
 # IMPORTS
 # ------------------------------------------
 import pyspark
-import datetime
+from datetime import timedelta, datetime
 
 
 # ------------------------------------------
@@ -44,41 +44,98 @@ def process_line(line):
     return res
 
 
-def my_reduce(all_input, measurement_time):
-    datetime_format = '%Y-%m-%d (%H:%M:%S)'
+# ---------------------------------------
+#  FUNCTION get_key_value
+# ---------------------------------------
+def get_key_value(line):
+    # 1. We create the output variable
+    res = ()
 
-    results = []
+    # 2. We remove the end of line char
+    line = line.replace('\n', '')
 
-    ran_out_count = 1
-    starting_time = ""
-    current_time = ""
+    # 3. We get the key and value
+    words = line.split('\t')
+    day = words[0]
+    hour = words[1]
 
-    for input in all_input:
-        if starting_time == "":
-            starting_time = datetime.datetime.strptime(input, datetime_format)
-            current_time = starting_time
+    # 4. We process the value
+    hour = hour.rstrip(')')
+    hour = hour.strip('(')
 
-        next_time = datetime.datetime.strptime(input, datetime_format)
+    # 4. We assign res
+    res = (day, hour)
 
-        if (next_time - current_time).total_seconds() == measurement_time * 60:
-            # We are 5 minutes apart
-            ran_out_count = ran_out_count + 1
-            current_time = next_time
+    # 5. We return res
+    return res
 
-        if (next_time - current_time).total_seconds() > measurement_time * 60:
-            # We are more than 5 minute apart
-            # Save our counts
-            results.append((starting_time.strftime("%Y-%m-%d"), (starting_time.strftime("%H:%M:%S"), ran_out_count)))
 
-            # Reset the things
-            ran_out_count = 1
-            starting_time = next_time
-            current_time = next_time
+def get_num_minutes_ago(date: str, time: str, time_interval: int):
+    date_info = date.split("-")
+    time_info = time.split(":")
 
-    # Write the last line
-    results.append((starting_time.strftime("%Y-%m-%d"), (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+    year = int(date_info[0])
+    month = int(date_info[1])
+    day = int(date_info[2])
 
-    return results
+    hour = int(time_info[0])
+    minute = int(time_info[1])
+    second = int(time_info[2])
+
+    date_time_object = datetime(year, month, day, hour, minute, second)
+
+    time_minutes_ago = date_time_object - timedelta(minutes=time_interval)
+
+    date_string = time_minutes_ago.strftime("%Y-%m-%d")
+    time_string = time_minutes_ago.strftime("%H:%M:%S")
+
+    return (date_string, time_string)
+
+
+# ------------------------------------------
+# FUNCTION my_reduce
+# ------------------------------------------
+def my_reduce(my_input_stream, time_interval):
+    output = []
+
+    reduce_list = list()
+    continuations = 0
+
+    my_input_stream.append("1010-10-10	(12:34:56)") # Adding a dummy extra line, as the for-loop doesn't work on the last set of times
+
+    for line in my_input_stream:
+        line_info = get_key_value(line)
+        date = line_info[0]
+        time = line_info[1]
+
+        reduce_list += [([date, time, 1])]
+
+        previous_time_interval = get_num_minutes_ago(date, time, time_interval)
+        previous_date = previous_time_interval[0]
+        previous_time = previous_time_interval[1]
+
+        if len(reduce_list) > 1:
+            previous = reduce_list[len(reduce_list) - 2]
+
+            if previous[0] == previous_date and previous[1] == previous_time:
+                continuations += 1
+            else:
+                reduce_list[len(reduce_list) - continuations - 2] = tuple(
+                    [reduce_list[len(reduce_list) - continuations - 2][0],
+                     reduce_list[len(reduce_list) - continuations - 2][1],
+                     continuations + 1]
+                )
+
+                for i in range(continuations):
+                    reduce_list.pop(-2)
+                continuations = 0
+
+    del reduce_list[-1] # Removing the dummy data
+
+    for item in reduce_list:
+        output.append("(\'%s\', (\'%s\', %s))" % (str(item[0]), str(item[1]), str(item[2])))
+
+    return output
 
 
 # ------------------------------------------
@@ -89,10 +146,9 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
 
     mappedRDD = inputRDD.map(process_line)
 
-    # Keeps only those that match the name and are ran out of bikes
     filteredRDD = mappedRDD.filter(lambda row: row[0] == '0' and row[5] == '0' and row[1] == station_name)
 
-    mappedRDD = filteredRDD.map(lambda row: datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d (%H:%M:00)"))
+    mappedRDD = filteredRDD.map(lambda row: datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d\t(%H:%M:00)"))
 
     collected = mappedRDD.collect()
 
