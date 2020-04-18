@@ -1,47 +1,3 @@
-import pyspark
-
-
-def process_line(line):
-    # 1. We create the output variable
-    res = ()
-
-    # 2. We remove the end of line character
-    line = line.replace("\n", "")
-
-    # 3. We split the line by tabulator characters
-    params = line.split(";")
-
-    # 4. We assign res
-    if (len(params) == 4):
-        res = tuple(params)
-
-    # 5. We return res
-    return res
-
-
-def get_key_value(line):
-    # 1. We create the output variable
-    res = ()
-
-    # 2. We remove the end of line char
-    line = line.replace('\n', '')
-
-    # 3. We get the key and value
-    words = line.split('\t')
-    day = words[0]
-    hour = words[1]
-
-    # 4. We process the value
-    hour = hour.rstrip(')')
-    hour = hour.strip('(')
-
-    # 4. We assign res
-    res = (day, hour)
-
-    # 5. We return res
-    return res
-
-
 # ------------------------------------------
 # FUNCTION my_map
 # ------------------------------------------
@@ -142,10 +98,3 @@ def my_spark_streaming_model(ssc, monitoring_dir):
     sortedRDD.pprint()
 
     pass
-
-
-if __name__ == '__main__':
-    sc = pyspark.SparkContext.getOrCreate()
-    sc.setLogLevel('WARN')
-    my_dataset_dir = "FileStore/tables/3_Assignment/matfiles/"
-    my_spark_core_model(sc, my_dataset_dir)
