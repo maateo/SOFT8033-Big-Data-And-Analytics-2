@@ -123,7 +123,6 @@ def my_spark_core_model(sc, my_dataset_dir):
 # FUNCTION my_spark_streaming_model
 # ------------------------------------------
 def my_spark_streaming_model(ssc, monitoring_dir):
-    print("HELLO!")
     inputDStream = ssc.textFileStream(monitoring_dir)
 
     mappedDStream = inputDStream.map(process_line)  # Gives (project, web-page, language, views)
