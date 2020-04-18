@@ -53,19 +53,18 @@ def my_main(sc, my_dataset_dir):
 
     filteredRDD = mappedRDD.filter(lambda row: row[0] == '0' and row[5] == '0')
 
-    placeNamesRDD = filteredRDD.map(lambda row: [row[1]])
+    mappedRDD = filteredRDD.map(lambda row: [row[1]])
 
-    placeCountRDD = placeNamesRDD.map(lambda row: (row[0], 1))
+    mappedRDD = mappedRDD.map(lambda row: (row[0], 1))
 
-    reducedRDD = placeCountRDD.reduceByKey(lambda x, y: x + y)
+    reducedRDD = mappedRDD.reduceByKey(lambda x, y: x + y)
 
-    reducedRDD = reducedRDD.sortBy(lambda a: a[1] * (-1))
-    # reducedRDD = reducedRDD.sortBy(lambda a: a[1], False)
+    sortedRDD = reducedRDD.sortBy(lambda a: a[1] * (-1))
+    # sortedRDD = reducedRDD.sortBy(lambda a: a[1], False)
 
-    print(reducedRDD.count())
+    print(sortedRDD.count())
 
-    # print(reducedRDD.collect())
-    for item in reducedRDD.collect():
+    for item in sortedRDD.collect():
         print(item)
 
     pass
