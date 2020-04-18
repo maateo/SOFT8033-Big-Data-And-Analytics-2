@@ -106,9 +106,10 @@ def my_spark_core_model(sc, my_dataset_dir):
     # eg: Wikipedia_English, Olympic Games, 211
     mappedRDD = mappedRDD.map(lambda row: ("%s_%s" % (row[0], row[2]), (row[1], int(row[3]))))
 
-    # Reduce it so the highest
+    # Reduce it so the highest of each key is kept
     reducedRDD = mappedRDD.reduceByKey(lambda x, y: x if (x[1] > y[1]) else y)
 
+    # Sort it so highest num views if first
     sortedRDD = reducedRDD.sortBy(lambda row: row[1][1] * (-1))
     # sortedRDD = reducedRDD.sortBy(lambda a: a[1][1], False)
 
@@ -118,15 +119,34 @@ def my_spark_core_model(sc, my_dataset_dir):
     pass
 
 
+# ------------------------------------------
+# FUNCTION my_spark_streaming_model
+# ------------------------------------------
+def my_spark_streaming_model(ssc, monitoring_dir):
+    print("HELLO!")
+    inputDStream = ssc.textFileStream(monitoring_dir)
+
+    mappedDStream = inputDStream.map(process_line)  # Gives (project, web-page, language, views)
+
+    # Map in the format of (project_language, page_name, num_views)
+    # eg: Wikipedia_English, Olympic Games, 211
+    mappedDStream = mappedDStream.map(lambda row: ("%s_%s" % (row[0], row[2]), (row[1], int(row[3]))))
+
+    windowDStream = mappedDStream.window(60, 60)
+
+    # Reduce it so the highest of each key is kept
+    reducedRDD = windowDStream.transform(lambda rdd: rdd.reduceByKey(lambda x, y: x if (x[1] > y[1]) else y))
+
+    # Sort it so highest num views if first
+    sortedRDD = reducedRDD.transform(lambda rdd: rdd.sortBy(lambda row: row[1][1], False))
+
+    sortedRDD.pprint()
+
+    pass
+
+
 if __name__ == '__main__':
     sc = pyspark.SparkContext.getOrCreate()
     sc.setLogLevel('WARN')
     my_dataset_dir = "FileStore/tables/3_Assignment/matfiles/"
     my_spark_core_model(sc, my_dataset_dir)
-
-
-# ------------------------------------------
-# FUNCTION my_spark_streaming_model
-# ------------------------------------------
-def my_spark_streaming_model(ssc, monitoring_dir):
-    pass
