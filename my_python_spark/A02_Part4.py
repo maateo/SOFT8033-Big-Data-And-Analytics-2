@@ -48,26 +48,11 @@ def process_line(line):
     return res
 
 
-# def my_state_update(a):
-#     # 1. We create the output variable
-#     res = 0
-#
-#     # # 2. If this is the first time we find the key, we initialise it
-#     # if (cur_agg_val is None):
-#     #     cur_agg_val = 0
-#     #
-#     # # 3. We update the state
-#     # res = sum(time_interval_list_of_collected_new_values) + cur_agg_val
-#
-#     print("A", a)
-#
-#     # 4. We return res
-#     return res
-
-def my_state_update(newValues, runningCount):
-    if runningCount is None:
-        runningCount = 0
-    return sum(newValues, runningCount)  # add the new values with the previous running count to get the new count
+def my_state_update(new_values, total_count):
+    if total_count is None:
+        # If this is the first time we find the key, we initialise it
+        total_count = 0
+    return sum(new_values, total_count)  # add the new values to the total count to get the new count
 
 
 # ------------------------------------------
@@ -87,31 +72,23 @@ def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_i
     amalgamateWindowDStream = stationCountDStream.window(window_duration * time_step_interval,
                                                          sliding_duration * time_step_interval
                                                          )
-    # amalgamateWindowDStream.pprint(100000)
 
-    cummulativeWindowDStream3 = stationCountDStream.window(sliding_duration * time_step_interval,  # Getting just one batch of data to add onto the running total
-                                                           sliding_duration * time_step_interval
-                                                           )
+    cummulativeWindowDStream = stationCountDStream.window(sliding_duration * time_step_interval,  # Getting just one batch of data to add onto the running total
+                                                          sliding_duration * time_step_interval
+                                                          )
 
-    cummulativeSolutionDStream = cummulativeWindowDStream3.updateStateByKey(my_state_update)
-    cummulativeSolutionDStream = cummulativeSolutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
+    cummulativeSolutionDStream = cummulativeWindowDStream.updateStateByKey(my_state_update)  # add everything together
+    cummulativeSolutionDStream = cummulativeSolutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))  # Sort everything
 
-    amalgamateSolutionDStream2 = amalgamateWindowDStream.reduceByKey(lambda x, y: (x + y)).transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
+    # Sum up rows and sort
+    amalgamateSolutionDStream = amalgamateWindowDStream.reduceByKey(lambda x, y: (x + y)).transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))
 
     cummulativeSolutionDStream.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
-    # windowDStream.pprint()
-    cummulativeSolutionDStream.pprint(10000)
-    amalgamateSolutionDStream2.pprint(10000)
-    # cummulativeSolutionDStream.foreachRDD(lambda rdd: printEachRDD(rdd))
+    cummulativeSolutionDStream.pprint(10000)  # removes truncation in the output, or at least until we reach 10000 lines :)
+    amalgamateSolutionDStream.pprint(10000)  # removes truncation in the output, or at least until we reach 10000 lines :)
 
     pass
-
-
-# def printEachRDD(rdd):
-#     print("-------------------")
-#     for item in rdd.sortBy(lambda a: a[1] * (-1)).collect():
-#         print(item)
 
 
 # ------------------------------------------
