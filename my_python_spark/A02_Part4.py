@@ -69,15 +69,18 @@ def my_model(ssc, monitoring_dir, window_duration, sliding_duration, time_step_i
 
     # The first argument is the window duration, i.e., how many previous batches of data are considered.
     # The second argument is the sliding duration, i.e., how frequently the new DStream computes results.
+
+    cummulativeSolutionDStream = cummulativeWindowDStream.updateStateByKey(my_state_update)  # add everything together
+
+
     amalgamateWindowDStream = stationCountDStream.window(window_duration * time_step_interval,
                                                          sliding_duration * time_step_interval
                                                          )
 
-    cummulativeWindowDStream = stationCountDStream.window(sliding_duration * time_step_interval,  # Getting just one batch of data to add onto the running total
-                                                          sliding_duration * time_step_interval
-                                                          )
+    # cummulativeWindowDStream = stationCountDStream.window(sliding_duration * time_step_interval,  # Getting just one batch of data to add onto the running total
+    #                                                       sliding_duration * time_step_interval
+    #                                                       )
 
-    cummulativeSolutionDStream = cummulativeWindowDStream.updateStateByKey(my_state_update)  # add everything together
     cummulativeSolutionDStream = cummulativeSolutionDStream.transform(lambda rdd: rdd.sortBy(lambda row: row[1], False))  # Sort everything
 
     # Sum up rows and sort

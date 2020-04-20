@@ -94,6 +94,9 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
 
     mappedRDD = filteredRDD.map(lambda row: datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d (%H:%M:00)"))
 
+    # group by key - everyone with same day under sane input in rdd
+
+
     collected = mappedRDD.collect()
 
     reduced = my_reduce(collected, measurement_time)
