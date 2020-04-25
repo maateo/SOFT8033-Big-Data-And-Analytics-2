@@ -44,8 +44,8 @@ def process_line(line):
     return res
 
 
-def my_reduce(all_input, measurement_time):
-    datetime_format = '%Y-%m-%d (%H:%M:%S)'
+def my_reduce(date, times, measurement_time):
+    # datetime_format = '%Y-%m-%d (%H:%M:%S)'
 
     results = []
 
@@ -53,12 +53,12 @@ def my_reduce(all_input, measurement_time):
     starting_time = ""
     current_time = ""
 
-    for input in all_input:
+    for time in times:
         if starting_time == "":
-            starting_time = datetime.datetime.strptime(input, datetime_format)
+            starting_time = datetime.datetime.strptime(time, "%H:%M:%S")
             current_time = starting_time
 
-        next_time = datetime.datetime.strptime(input, datetime_format)
+        next_time = datetime.datetime.strptime(time, "%H:%M:%S")
 
         if (next_time - current_time).total_seconds() == measurement_time * 60:
             # We are 5 minutes apart
@@ -68,7 +68,7 @@ def my_reduce(all_input, measurement_time):
         if (next_time - current_time).total_seconds() > measurement_time * 60:
             # We are more than 5 minute apart
             # Save our counts
-            results.append((starting_time.strftime("%Y-%m-%d"), (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+            results.append((date, (starting_time.strftime("%H:%M:%S"), ran_out_count)))
 
             # Reset the things
             ran_out_count = 1
@@ -76,7 +76,7 @@ def my_reduce(all_input, measurement_time):
             current_time = next_time
 
     # Write the last line
-    results.append((starting_time.strftime("%Y-%m-%d"), (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+    results.append((date, (starting_time.strftime("%H:%M:%S"), ran_out_count)))
 
     return results
 
@@ -92,18 +92,28 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
     # Keeps only those that match the name and are ran out of bikes
     filteredRDD = mappedRDD.filter(lambda row: row[0] == '0' and row[5] == '0' and row[1] == station_name)
 
-    mappedRDD = filteredRDD.map(lambda row: datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d (%H:%M:00)"))
+    # Date as key, and hour as value
+    mappedRDD = filteredRDD.map(
+        lambda row: (datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d"), datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%H:%M:00")))
+
+    # print(mappedRDD.collect())
 
     # group by key - everyone with same day under sane input in rdd
+    groupedRDD = mappedRDD.groupByKey()
+    # print(groupedRDD.mapValues(list).collect())
 
+    reducedStuff = groupedRDD.map(lambda date_times: my_reduce(date_times[0], list(date_times[1]), measurement_time))
 
-    collected = mappedRDD.collect()
-
-    reduced = my_reduce(collected, measurement_time)
-
-    for item in reduced:
+    for item in reducedStuff.collect():
         print(item)
 
+    # collected = mappedRDD.collect()
+    #
+    # reduced = my_reduce(collected, measurement_time)
+    #
+    # for item in reduced:
+    #     print(item)
+    #
     pass
 
 
