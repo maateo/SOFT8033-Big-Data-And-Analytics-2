@@ -68,7 +68,7 @@ def my_reduce(date, times, measurement_time):
         if (next_time - current_time).total_seconds() > measurement_time * 60:
             # We are more than 5 minute apart
             # Save our counts
-            results.append((date, (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+            results.append( (starting_time.strftime("%H:%M:%S"), ran_out_count))
 
             # Reset the things
             ran_out_count = 1
@@ -76,9 +76,9 @@ def my_reduce(date, times, measurement_time):
             current_time = next_time
 
     # Write the last line
-    results.append((date, (starting_time.strftime("%H:%M:%S"), ran_out_count)))
+    results.append((starting_time.strftime("%H:%M:%S"), ran_out_count))
 
-    return results
+    return date, results
 
 
 # ------------------------------------------
@@ -102,9 +102,13 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
     groupedRDD = mappedRDD.groupByKey()
     # print(groupedRDD.mapValues(list).collect())
 
-    reducedStuff = groupedRDD.map(lambda date_times: my_reduce(date_times[0], list(date_times[1]), measurement_time))
+    # a tuple (date, runouts[]). runouts is a list of tuples that have the hour and the number of runouts
+    # eg: ('2017-05-04', [('16:37:00', 1)])
+    date_runouts = groupedRDD.map(lambda date_times: my_reduce(date_times[0], list(date_times[1]), measurement_time))
 
-    for item in reducedStuff.collect():
+    date_runouts = date_runouts.flatMapValues(lambda value: value)
+
+    for item in date_runouts.collect():
         print(item)
 
     # collected = mappedRDD.collect()
