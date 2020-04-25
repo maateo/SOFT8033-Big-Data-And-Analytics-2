@@ -103,21 +103,25 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
     # print(groupedRDD.mapValues(list).collect())
 
     # a tuple (date, runouts[]). runouts is a list of tuples that have the hour and the number of runouts
-    # eg: ('2017-05-04', [('16:37:00', 1)])
+    # eg: ('2017-03-21', [('22:12:00', 4), ('22:37:00', 2)])
     date_runouts = groupedRDD.map(lambda date_times: my_reduce(date_times[0], list(date_times[1]), measurement_time))
 
+    # I'll actually sort it later, but it also worked fine here.
+    # # Sort it now, rather than later, since the runouts[] are already in order
+    # date_runouts = date_runouts.sortByKey()
+
+    # Flatmap it!
+    # eg: ('2017-03-21', ('22:12:00', 4))
+    #     ('2017-03-21', ('22:37:00', 2))
     date_runouts = date_runouts.flatMapValues(lambda value: value)
+
+    # Sort everything
+    date_runouts = date_runouts.sortByKey()
+
 
     for item in date_runouts.collect():
         print(item)
 
-    # collected = mappedRDD.collect()
-    #
-    # reduced = my_reduce(collected, measurement_time)
-    #
-    # for item in reduced:
-    #     print(item)
-    #
     pass
 
 
