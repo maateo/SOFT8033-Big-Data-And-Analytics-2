@@ -75,7 +75,6 @@ def my_main(sc, my_dataset_dir, station_name):
     sortedRDD = mappedRDD.sortBy(lambda a: a[1][0] * (-1))
     # sortedRDD = mappedRDD.sortBy(lambda a: a[1], False)
 
-    # print(sortedRDD.collect())
     for item in sortedRDD.collect():
         print(item)
 

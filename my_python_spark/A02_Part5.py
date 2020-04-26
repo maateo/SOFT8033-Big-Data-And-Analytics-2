@@ -2,19 +2,19 @@
 # FUNCTION my_map
 # ------------------------------------------
 def my_map(my_input_stream, my_output_stream, my_mapper_input_parameters):
-    # Not sure what my_mapper_input_parameters is for.
+    # Not sure what my_mapper_input_parameters is used for in this situation.
 
     for input in my_input_stream:
-        processed_input = process_line(input)
+        processed_input = process_line(input)  # Returns a tuple with 4 values
 
         project = processed_input[0]
         page_name = processed_input[1]
         language = processed_input[2]
-        num_views = processed_input[3]
+        num_views = int(processed_input[3])
 
         # So, we want it to look something like: project_language, page_name, num_views
-        # eg: Wikipedia_English, Olympic Games, 211
-        string_to_write = "%s_%s, %s, %s\n" % (project, language, page_name, num_views)
+        #  eg: Wikipedia_English	(Olympic Games, 211)
+        string_to_write = "%s_%s\t(%s, %d)\n" % (project, language, page_name, num_views)
 
         my_output_stream.write(string_to_write)
 
@@ -25,14 +25,15 @@ def my_map(my_input_stream, my_output_stream, my_mapper_input_parameters):
 # FUNCTION my_reduce
 # ------------------------------------------
 def my_reduce(my_input_stream, my_output_stream, my_reducer_input_parameters):
+    # Not sure what my_reducer_input_parameters is used for in this situation.
     outputs_dictionary = {}
 
     for input in my_input_stream:
-        p_p_n = input.split(",")  # gives ["Wikipedia_English","Olympic Games", "211"]
+        key_value = get_key_value(input)
 
-        project_language = p_p_n[0]  # "Wikipedia_English"
-        page_name = p_p_n[1]  # "Olympic Games"
-        num_views = p_p_n[2]  # "211"
+        project_language = key_value[0]  # "Wikipedia_English"
+        page_name = key_value[1].split(',')[0].strip()  # "Olympic Games"
+        num_views = key_value[1].split(',')[1].strip()  # "211"
 
         if project_language in outputs_dictionary:
             # We have the project_language key in there
@@ -44,7 +45,8 @@ def my_reduce(my_input_stream, my_output_stream, my_reducer_input_parameters):
             outputs_dictionary[project_language] = (page_name, num_views)
 
     for output in outputs_dictionary.keys():
-        string_to_write = "%s\t(%s, %s)" % (output, outputs_dictionary[output], outputs_dictionary[output])
+        # prints in the format of: key  (page_name, page_value)
+        string_to_write = "%s\t(%s, %s)\n" % (output, outputs_dictionary[output][0], outputs_dictionary[output][1])
         my_output_stream.write(string_to_write)
 
     pass

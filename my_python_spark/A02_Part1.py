@@ -62,6 +62,8 @@ def my_main(sc, my_dataset_dir):
     sortedRDD = reducedRDD.sortBy(lambda a: a[1] * (-1))
     # sortedRDD = reducedRDD.sortBy(lambda a: a[1], False)
 
+    sortedRDD.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+
     print(sortedRDD.count())
 
     for item in sortedRDD.collect():
