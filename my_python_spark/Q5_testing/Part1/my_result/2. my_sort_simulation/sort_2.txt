@@ -1,0 +1,6 @@
+Wikipedia_Russian	(AppleR, 217)
+Wikipedia_Russian	(BananaR, 100)
+Wikipedia_Russian	(PearR, 218)
+Wikipedia_Spanish	(AppleS, 22227)
+Wikipedia_Spanish	(BananaS, 100)
+Wikipedia_Spanish	(PearS, 218)
