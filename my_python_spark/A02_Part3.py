@@ -68,7 +68,7 @@ def my_reduce(date, times, measurement_time):
         if (next_time - current_time).total_seconds() > measurement_time * 60:
             # We are more than 5 minute apart
             # Save our counts
-            results.append( (starting_time.strftime("%H:%M:%S"), ran_out_count))
+            results.append((starting_time.strftime("%H:%M:%S"), ran_out_count))
 
             # Reset the things
             ran_out_count = 1
@@ -96,17 +96,14 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
     mappedRDD = filteredRDD.map(
         lambda row: (datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d"), datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%H:%M:00")))
 
-    # print(mappedRDD.collect())
-
-    # group by key - everyone with same day under sane input in rdd
+    # group by key - everyone with same day under same input in rdd
     groupedRDD = mappedRDD.groupByKey()
-    # print(groupedRDD.mapValues(list).collect())
 
     # a tuple (date, runouts[]). runouts is a list of tuples that have the hour and the number of runouts
     # eg: ('2017-03-21', [('22:12:00', 4), ('22:37:00', 2)])
     date_runouts = groupedRDD.map(lambda date_times: my_reduce(date_times[0], list(date_times[1]), measurement_time))
 
-    # I'll actually sort it later, but it also worked fine here.
+    # I'll actually sort it later, but it also worked fine here on this dataset.
     # # Sort it now, rather than later, since the runouts[] are already in order
     # date_runouts = date_runouts.sortByKey()
 
@@ -115,9 +112,8 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
     #     ('2017-03-21', ('22:37:00', 2))
     date_runouts = date_runouts.flatMapValues(lambda value: value)
 
-    # Sort everything
+    # Sort everything - No need to do it here if done above
     date_runouts = date_runouts.sortByKey()
-
 
     for item in date_runouts.collect():
         print(item)
