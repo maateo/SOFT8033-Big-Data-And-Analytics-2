@@ -45,6 +45,7 @@ def my_reduce(my_input_stream, my_output_stream, my_reducer_input_parameters):
             outputs_dictionary[project_language] = (page_name, num_views)
 
     for output in sorted(outputs_dictionary.keys(), key=lambda item: outputs_dictionary[item][1], reverse=True):
+        # prints in the format of: key  (page_name, page_value)
         string_to_write = "%s\t(%s, %s)\n" % (output, outputs_dictionary[output][0], outputs_dictionary[output][1])
         my_output_stream.write(string_to_write)
 
