@@ -44,9 +44,11 @@ def process_line(line):
     return res
 
 
-def my_reduce(date, times, measurement_time):
+def my_reduce(date_times, measurement_time):
     # datetime_format = '%Y-%m-%d (%H:%M:%S)'
 
+    date = date_times[0]
+    times = date_times[1]
     results = []
 
     ran_out_count = 1
@@ -94,14 +96,15 @@ def my_main(sc, my_dataset_dir, station_name, measurement_time):
 
     # Date as key, and hour as value
     mappedRDD = filteredRDD.map(
-        lambda row: (datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d"), datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%H:%M:00")))
+        lambda row: (datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%Y-%m-%d"),
+                     datetime.datetime.strptime(row[4], "%d-%m-%Y %H:%M:%S").strftime("%H:%M:00")))
 
     # group by key - everyone with same day under same input in rdd
     groupedRDD = mappedRDD.groupByKey()
 
     # a tuple (date, runouts[]). runouts is a list of tuples that have the hour and the number of runouts
     # eg: ('2017-03-21', [('22:12:00', 4), ('22:37:00', 2)])
-    date_runouts = groupedRDD.map(lambda date_times: my_reduce(date_times[0], list(date_times[1]), measurement_time))
+    date_runouts = groupedRDD.map(lambda date_times: my_reduce(date_times, measurement_time))
 
     # I'll actually sort it later, but it also worked fine here on this dataset.
     # # Sort it now, rather than later, since the runouts[] are already in order
